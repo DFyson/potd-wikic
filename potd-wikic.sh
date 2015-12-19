@@ -1,44 +1,54 @@
 #!/bin/bash
 
-# potd-wikic.sh
-# Updates desktop background of Gnome with Wikimedia Commons picture of the day (POTD).
-# Downloads images including future ones, adds a descryption caption on bottom, and updates the desktop background.
-# Can be run on a server for downloading images then have personal device get them from there thus allowing faster downloads and reduced bandwidth at peak times.
+## potd-wikic.sh
 
-#usage:
-# potd-wikic [options] [functions]
-# script has both options and functions. Order of the arguments matter. Options must be set before functions.
+function show_help() {
+echo '    :: potd-wikic ::
+ Updates desktop background of Gnome with Wikimedia Commons picture of the day (POTD).
+Downloads images including future ones, adds a caption with the decryption on bottom, and updates the desktop background.
+Can be run on a server for downloading images then have personal device get them from there thus allowing faster downloads and reduced bandwidth at peak times.
 
-#functions: can run in any order.
-# -g<N>  downloads (full sized) images for N days into the future. 0 downloads just todays. Number is required, no default (for now). Both the webpage and image are stored.
-# -c     creates image with caption on bottom.
-# -s     sets the desktop image (for Gnome, for now)
-# -h     displays help
-# -r<N>  removes images older than N days in the past. (needs to be implimented)
+usage:
+ potd-wikic {options/functions}
 
-#options:
-# -d<dir>     working directory (default ~/Pictures/potd-wikic)
-# -m<url>     url of mirror.
+options:
+ -d<dir>   working directory (default ~/Pictures/potd-wikic/)
+ -m<url>   url of mirror server. If mirror fails, falls back on wikimedia.org.
 
-#typical usage:
-#on server: download images to publically accessible directory.
-# potd-wikic -w"/var/www/potd-wikic/" -g7
+functions: can run in any order and are only run if specified (no default on omission)
+ -g<N>     downloads images for N days into the future. 0 downloads only todays. default is 2.
+ -c        processes image with caption on bottom.
+ -s        sets the desktop background image (for GNOME, for now). May not need this (read below).
+ -r<N>     removes images older than N days in the past. default is 7.
+ -h/?      displays help
 
-#on personal device: update image then check for new ones.
-# potd-wikic -m"http://example.com/potd-wikic/" -c -s -g3
 
-#setup:
-#make sure working directory exists. (~/Pictures/potd-wikic by default)
-#place in /usr/local/bin as potd-wikic with execute permissions.
-#run daily as an anacron job. Unlike cron, anacron runs jobs at the next available oppertunity even if missed such as computer off.
-#in Ubuntu, etc/cron.daily is run by anacron. Therefore create script in there containing the command. eg:
-#  #!/bin/sh
-#  potd-wikic -c -s -g7
+typical usage:
+  on server: download images to publicly accessible directory. Useful for bandwidth management.
+    potd-wikic -d"/var/www/potd-wikic/" -g7 -r
+  on personal device: update image then check for new ones. Is good to get at least  
+    potd-wikic -m"http://example.com/potd-wikic/" -c -s -g3 -r
 
+
+setup notes:
+• make sure working directory exists. (~/Pictures/potd-wikic by default)
+• place in /usr/local/bin as potd-wikic with execute permissions.
+• run daily as an anacron job. Unlike cron, anacron runs jobs at the next available opportunity even if missed such as computer off. In Ubuntu, etc/cron.daily is run by anacron. Therefore create script in there containing the command. eg:
+  #!/bin/sh
+  potd-wikic -c -g7 -r
+• The owner of the desktop needs to set their background image once if this script is run by another user (read below)
+
+• Do not necessarily need to use the set (-s) option. After creating an image (-c) can change the desktop background to potd.jpg. That file is then watch for changes (in GNOME at least) and the desktop updates automatically when potd.jpg is updated. Aswell the set option needs to be run by the user for whos desktop its updating but luckily only needs to be set once.
+• It is useful to get at least a few images in the future in event download fails.
+• If have future images then best to run -g after -c -s so latest image gets promptly updated when script runs. Otherwise downloading can take some time on slower connections with higher risk of script being interrupted (laptop suspended).
+• If -r isnt specified images will forever be accumulated thus filling up drive.
+• Currently only full sized images are downloaded.
+'
+}
 
 #TODO:
-#impliment verbosity output
-#have disk cleanup of old images. Have remove after so many days old, and/or after reaching disk usage quota.
+#implement verbosity output
+#have disk cleanup of old images. Have remove after so many days old, and/or 
 #really need to have option to get specified thumbnail size to limit bandwidth usage. Some images are huge. Only issue is if one wants to see original picture, or if multiple diplays are used with different resolutions. Should have option for both.
 #maybe output the url to the original image the potd.dat, then parse the date from that. That way, one can simply paste that url into browser to get the webpage for the current POTD.
 #add more tests, more error handling. ie test if working directory exists.
@@ -46,21 +56,27 @@
 #option to disable caption.
 #with the number of options, should probably use a config file.
 #allow proxy servers?
+#make an install script.
+#make more modular and make functions more independent (ie pass parameters to functions).
+#allow one to use last argument as working directory so no '-d' needs to be specified.
+#dont download anything if disk space is less than say 500MB.
 
 
 #testing:
-#offline usage (ensure proper handling of netork errors)
+#offline usage (ensure proper handling of network errors)
 #server usage.
 #test various scenarios (try to break script)
 #script delay/retry script hasn't been tested.
 
 #ToFix:
 #allow arguments which require input to be optional with a default value. eg -g implies -g0. Appears may have to forget using getops (http://stackoverflow.com/questions/14062895/bash-argument-case-for-args-in/14063511#14063511)
-#http://commons.wikimedia.org/wiki/Template:Potd/2015-07-27_(en) had problem displaying. Becasue there was no description?
+#http://commons.wikimedia.org/wiki/Template:Potd/2015-07-27_(en) had problem displaying. Because there was no description?
 
 # History
 # 2014-11-26: created (Devon Fyson)
 # 2015-07-09: Removed "http:" from image url prefix. It now already comes https.
+# 2015-11-09: Added cleanup function.
+# 2015-12-18: Fixed cleanup function, options before functions no longer required, options can be run without arguments, misc cleanup & documentation updates.
 
 #atomfeed="https://commons.wikimedia.org/w/api.php?action=featuredfeed&feed=potd&feedformat=atom&language=en"
 #"http://commons.wikimedia.org/wiki/Template:Potd/2014-11"
@@ -79,7 +95,7 @@ verbose="0"
 #getImages options:
 delay="0" #minutes delay before getting images. Useful for wireless connections which are slow to establish.
 repeatDelays=("10" "20" "30") #minutes of delay between re-tries before giving up.
-f="0" #number of webpages in the future to download (0 = only todays)
+f="2" #number of webpages in the future to download (0 = only todays)
 baseurl="http://commons.wikimedia.org/wiki/Template:Potd/" #base URL (prefix) for wikimedia POTD.
 lang="_(en)"	# suffix for url specifying language for caption.
 
@@ -93,12 +109,21 @@ textSize="13" #text size in points for caption.
 quota="100" #maximum space quota in MB
 h="7" #days in past after which to delete images.
 
-if [[ -d "$workingdir" ]]; then
-	cd $workingdir
-fi
-
 #internal variables.
 repeatIndex=0
+args=$#
+
+function gotoWorkingDir() {
+	if [[ -d "$workingdir" ]]; then
+		cd $workingdir
+	else #try making it.
+		mkdir $workingdir
+		if [ $? -gt 0 ]; then
+			#echo "Problem creating directory '$workingdir'. Correct permissions?" #dont really need this error since mkdir complains too. 
+			exit 1
+		fi
+	fi
+}
 
 function getImages() { 
 
@@ -108,7 +133,7 @@ function getImages() {
 	sleep "$delay""m"
 	echo -n "testing connection..."
  	if [[ $(ping -q -w 1 -c 1 `ip r | grep default | cut -d ' ' -f 3` > /dev/null && echo ok || echo "") ]]; then
-		echo " ok."
+		echo " done."
 		echo "getting images..." #if [ "$verbose" == "1" ]; then echo "getting images..."; fi
 		for i in $(seq 0 $f);
 		do
@@ -124,7 +149,7 @@ function getImages() {
 					if [[ $? -eq "0" ]]; then #first ensure wget didn't return any errors.
 						mirrorWebpageSuccess=`echo "$webpage" | perl -ne "if(m/<title>Template:Potd\/$date \(en\) - Wikimedia Commons<\/title>/){print 1}"` #test to see if got good page.
 						if [[ $mirrorWebpageSuccess ]]; then #then check if file contents is really what we want.
-							echo "ok."
+							echo "done."
 						else
 							echo -e "\e[1;31mfailed\e[0m. Wrong webpage. Dumping to failed.html"
 							echo "$webpage" > "failed.html"
@@ -143,7 +168,7 @@ function getImages() {
 					if [[ $? -eq "0" ]]; then #first ensure wget didn't return any errors.
 						webpageSuccess=`echo "$webpage" | perl -ne "if(m/<title>Template:Potd\/$date \(en\) - Wikimedia Commons<\/title>/){print 1}"` #test to see if got good page.
 						if [[ $webpageSuccess ]]; then #then check if file contents is really what we want.
-							echo "ok."
+							echo "done."
 						else
 							echo -e "\e[1;31mfailed\e[0m. Wrong webpage. Dumping to failed.html"
 							echo "$webpage" > "failed.html"
@@ -163,7 +188,7 @@ function getImages() {
 					wget --waitretry=20 --tries=20 --continue --quiet "$mirrorUrl$imageFile" -O$imageFile #get the picture.
 
 					if [[ $? -eq "0" ]]; then #first ensure wget didn't return any errors.
-						echo "ok."
+						echo "done."
 						mirrorImageSuccess="1"
 					else
 						echo -e "\e[1;31mfailed\e[0m. wget error $?"
@@ -175,7 +200,7 @@ function getImages() {
 					wget --waitretry=20 --tries=20 --continue --quiet "$original" -O$imageFile #get the picture.
 
 					if [[ $? -eq "0" ]]; then #first ensure wget didn't return any errors.
-						echo "ok."
+						echo "done."
 						imageSuccess="1"
 					else
 						echo -e "\e[1;31mfailed\e[0m. wget error $?"
@@ -214,7 +239,7 @@ function createPOTD() {
 	date=`date +%F`
 	lastUpdate=`cat $lastUpdateFile` #check last update. If already updated then die.
 	if [ "$lastUpdate" == "$date" ]; then
-		echo -e " wallpaper already updated $date."
+		echo -e " wallpaper already updated $date. To override, delete potd.dat in the working directory."
 	else
 		webpageFile="$date.html"
 		imageFile="$date.jpg"
@@ -237,101 +262,115 @@ function createPOTD() {
 
 		#write date to file for checking if run again.
 		echo $date > $lastUpdateFile
-		echo "ok."
+		echo "done."
 	fi
 }
 
 function setPOTD() { 
 	echo -n "setting POTD... "
-	gsettings set org.gnome.desktop.background picture-uri "file://$workingdir/$imageFileCurrent"
-	echo "ok."
+	gsettings set org.gnome.desktop.background picture-uri "file://$workingdir/$imageFileCurrent" #NEEDs to be run for user who's desktop you want to change. Once set, doesn't seem to need to be reset.
+	echo "done."
 }
 
 function cleanupImages() { #delete
 	echo "cleanup images..."
-	#TODO impliment
-}
-
-function show_help() {
-echo '    :: potd-wikic ::
- Updates desktop background of Gnome with Wikimedia Commons picture of the day (POTD).
-Downloads images including future ones, adds a descryption caption on bottom, and updates the desktop background.
-Can be run on a server for downloading images then have personal device get them from there thus allowing faster downloads and reduced bandwidth at peak times.
-
-usage:
- potd-wikic [options] [functions]
- script has both options and functions. Order of the arguments matter. Options must be set before functions.
-
-functions: can run in any order.
- -g<N>  downloads (full sized) images for N days into the future. 0 downloads just todays. Number is required, no default (for now). Both the webpage and image are stored.
- -c     creates image with caption on bottom.
- -s     sets the desktop image (for Gnome, for now)
- -h     displays help
- -r<N>  removes images older than N days in the past. (needs to be implimented)
-
-options:
- -d<dir>     working directory (default ~/Pictures/potd-wikic/)
- -m<url>     url of mirror.
-
-typical usage:
-  on server: download images to publically accessible directory.
-    potd-wikic -w"/var/www/potd-wikic/" -g7
-  on personal device: update image then check for new ones.
-    potd-wikic -m"http://example.com/potd-wikic/" -c -s -g3
-
-setup:
- make sure working directory exists. (~/Pictures/potd-wikic by default)
-place in /usr/local/bin as potd-wikic with execute permissions.
-run daily as an anacron job. Unlike cron, anacron runs jobs at the next available oppertunity even if missed such as computer off.
-in Ubuntu, etc/cron.daily is run by anacron. Therefore create script in there containing the command. eg:
-  #!/bin/sh
-  potd-wikic -c -s -g7
-'
-
-
-}
-
-OPTIND=1 #POSIX variable. Reset in case getopts has been used previously in the shell.
-
-while getopts "vh?g:csm:d:r:" opt; do #include list of varibles used. Add : after ones which require inpu
-	case "$opt" in
-	h|\?)
-		show_help
-		exit 0
-		;;
-	v) #increase verbosity
-		verbose="1"
-		;;
-	g)
-		f=$OPTARG
-		getImages
-		;;
-	c)
-		createPOTD
-		;;
-	s)
-		setPOTD
-		;;
-	r)
-		h=$OPTARG
-		cleanupImages
-		;;
-	m)
-		mirrorUrl=$OPTARG
-		;;
-	d)
-		workingdir=$OPTARG
-
-		if [[ -d "$workingdir" ]]; then
-			cd $workingdir
-		else
-			echo "specified working directory '$workingdir' doesn't exist."
-			exit
+	i=0
+	date=$(date +%s --date="-$h days") #date $h days in past.
+	for file in "$workingdir"/*; do
+		fileDate=`echo "$file" | perl -pe 's/.*?(\d{4}-\d{2}-\d{2})\.(jpg|html)/$1/'`
+		if [ "$fileDate" != "$file" ]; then #regex spits back the search string on no match. Don't want these.
+			fileUnixDate=$(date -d $fileDate +%s) #convert to unix date.
+			if [ $date -ge $fileUnixDate ]; then #do numerical comparison (could also do string comparison too)
+				#echo "removing: $file" (output if verbosity is set)
+				rm "$file" #delete file.
+				$i=$i+1
+			fi
 		fi
-		cd $workingdir
-		;;
+	done
+	echo "$i files deleted."
+	echo "done."
+	#TODO use wc -c <$file to get file size. Implement quota system (delete after so much space has been used)
+}
 
-	esac
-done
-shift $((OPTIND-1))
-[ "$1" = "--" ] && shift
+gotoWorkingDir
+
+#function processArgs() { #too much trouble using optargs inside function. Could figure out: http://stackoverflow.com/questions/16654607/using-getopts-inside-a-bash-function	
+
+	if [ "$args" -eq "0" ]; then #if no arguments passed, spit out help.
+		show_help
+	fi
+
+	#process all the options (before the functions so order doesn't matter on the command line))
+
+	OPTIND=1 #POSIX variable. Reset in case getopts has been used previously in the shell.
+	while getopts ":vh?g:csm:d:r:" opt; do #include list of variables used. Add colon after ones which require input. Initial colon change behaviour (read docs: 'help getopts')
+		case "$opt" in
+		h|\?) #should probably put this one in this getopts processing just incase getopts calls for '?'.
+			show_help
+			exit 0
+			;;
+		v) #increase verbosity
+			verbose="1"
+			;;
+		m)
+			mirrorUrl=$OPTARG
+			;;
+		d)
+			workingdir=$OPTARG
+			gotoWorkingDir
+
+			;;
+
+		esac
+	done
+
+	#process all the functions
+	OPTIND=1 #POSIX variable. Reset in case getopts has been used previously in the shell.
+	while getopts ":vh?g:csm:d:r:" opt; do #include list of variables used. Add colon after ones which require input. Initial colon suppressed verbose error handling (read docs: 'help getopts')
+		case "$opt" in
+		h|\?)
+			show_help
+			exit 0
+			;;
+		g)
+			f=$OPTARG
+			getImages
+			;;
+		c)
+			createPOTD
+			;;
+		s)
+			setPOTD
+			;;
+		r)
+			re='^[0-9]+$'
+			if [[ -z "$OPTARG" ]]; then #if blank then use default value.
+				cleanupImages
+			elif [[ $OPTARG =~ $re ]]; then #if a number was passed use it.
+				h=$OPTARG
+				cleanupImages
+			else #otherwise complain.
+				echo "Error: argument '$OPTARG' passed for cleaning up images is invalid. Requires a number or blank for default."
+			fi
+			;;
+
+		:) #case when no argument has been passed to a variable which should otherwise have an argument (should read docs)
+			case "$OPTARG" in
+			g)
+				getImages
+				;;
+			r)
+				cleanupImages
+				;;
+
+			esac
+			;;
+
+		esac
+	done
+
+	shift $((OPTIND-1)) #removes all the arguments processed by getopts so remaining can be easily processed by other means. http://stackoverflow.com/questions/26294218/what-is-a-reason-for-using-shift-optind-1-after-getopts
+	[ "$1" = "--" ] && shift
+#}
+
+#processArgs
