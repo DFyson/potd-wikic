@@ -31,7 +31,7 @@ typical usage:
 
 
 setup notes:
-• make sure working directory exists. (~/Pictures/potd-wikic by default)
+• can edit some of the hardcoded options.
 • place in /usr/local/bin as potd-wikic with execute permissions.
 • run daily as an anacron job. Unlike cron, anacron runs jobs at the next available opportunity even if missed such as computer off. In Ubuntu, etc/cron.daily is run by anacron. Therefore create script in there containing the command. eg:
   #!/bin/sh
@@ -77,6 +77,7 @@ setup notes:
 # 2015-07-09: Removed "http:" from image url prefix. It now already comes https.
 # 2015-11-09: Added cleanup function.
 # 2015-12-18: Fixed cleanup function, options before functions no longer required, options can be run without arguments, misc cleanup & documentation updates.
+# 2015-12-26: Minor fixes.
 
 #atomfeed="https://commons.wikimedia.org/w/api.php?action=featuredfeed&feed=potd&feedformat=atom&language=en"
 #"http://commons.wikimedia.org/wiki/Template:Potd/2014-11"
@@ -84,43 +85,50 @@ setup notes:
 #"http://commons.wikimedia.org/wiki/Template:Potd/2014-11-05_(en)" #with english description.
 #use getopts for parsing arguments. http://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
 
-#general user options used by multiple functions.
-workingdir="$HOME/Pictures/potd-wikic/" #working directory for wallpapers.
+## general user options used by multiple functions.
+workingdir="$HOME/Pictures/potd-wikic/" #default working directory for wallpapers.
 errorFile="errors.log"
 imageFileCurrent="potd.jpg"
 lastUpdateFile="potd.dat"
 webpageFile="potd.html"
 verbose="0"
 
-#getImages options:
+## getImages options:
 delay="0" #minutes delay before getting images. Useful for wireless connections which are slow to establish.
 repeatDelays=("10" "20" "30") #minutes of delay between re-tries before giving up.
 f="2" #number of webpages in the future to download (0 = only todays)
 baseurl="http://commons.wikimedia.org/wiki/Template:Potd/" #base URL (prefix) for wikimedia POTD.
 lang="_(en)"	# suffix for url specifying language for caption.
 
-#createImage options:
+## createImage options:
 imageFileCurrentDescription="description.png"
 resX="1280" #display resolution (x)
 resY="1024" #display resolution (y)
 textSize="13" #text size in points for caption.
 
-#cleanupImages options
-quota="100" #maximum space quota in MB
+## cleanupImages options
+#quota="100" #maximum space quota in MB
 h="7" #days in past after which to delete images.
 
-#internal variables.
+## internal variables.
 repeatIndex=0
 args=$#
+
+echo "potd-wikic. $(date '+%F %T')"
 
 function gotoWorkingDir() {
 	if [[ -d "$workingdir" ]]; then
 		cd $workingdir
 	else #try making it.
-		mkdir $workingdir
+		echo -n "creating working directory: '$workingdir'..."
+		mkdir -p $workingdir
 		if [ $? -gt 0 ]; then
-			#echo "Problem creating directory '$workingdir'. Correct permissions?" #dont really need this error since mkdir complains too. 
+			echo " error." #dont really need this error since mkdir complains too.
+			echo `date "+%F %T"`": error creating directory '$workingdir'." >> $errorFile
+			echo " exiting."
 			exit 1
+		else
+			echo " done."
 		fi
 	fi
 }
@@ -228,6 +236,7 @@ function getImages() {
 			getImages
 		else
 			echo -e "\e[1;31mfailed\e[0m."
+			echo `date "+%F %T"`": failed pinging the server." >> $errorFile
 		fi
 	fi
 }
@@ -283,7 +292,7 @@ function cleanupImages() { #delete
 			if [ $date -ge $fileUnixDate ]; then #do numerical comparison (could also do string comparison too)
 				#echo "removing: $file" (output if verbosity is set)
 				rm "$file" #delete file.
-				$i=$i+1
+		  		i=$((i+1))
 			fi
 		fi
 	done
@@ -291,8 +300,6 @@ function cleanupImages() { #delete
 	echo "done."
 	#TODO use wc -c <$file to get file size. Implement quota system (delete after so much space has been used)
 }
-
-gotoWorkingDir
 
 #function processArgs() { #too much trouble using optargs inside function. Could figure out: http://stackoverflow.com/questions/16654607/using-getopts-inside-a-bash-function	
 
@@ -317,12 +324,12 @@ gotoWorkingDir
 			;;
 		d)
 			workingdir=$OPTARG
-			gotoWorkingDir
-
 			;;
 
 		esac
 	done
+
+gotoWorkingDir
 
 	#process all the functions
 	OPTIND=1 #POSIX variable. Reset in case getopts has been used previously in the shell.
@@ -351,6 +358,7 @@ gotoWorkingDir
 				cleanupImages
 			else #otherwise complain.
 				echo "Error: argument '$OPTARG' passed for cleaning up images is invalid. Requires a number or blank for default."
+				echo `date "+%F %T"`": argument '$OPTARG' passed for cleaning up images is invalid. Requires a number or blank for default." >> $errorFile
 			fi
 			;;
 
@@ -372,5 +380,7 @@ gotoWorkingDir
 	shift $((OPTIND-1)) #removes all the arguments processed by getopts so remaining can be easily processed by other means. http://stackoverflow.com/questions/26294218/what-is-a-reason-for-using-shift-optind-1-after-getopts
 	[ "$1" = "--" ] && shift
 #}
+
+echo
 
 #processArgs
