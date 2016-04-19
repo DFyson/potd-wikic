@@ -38,7 +38,7 @@ setup notes:
   potd-wikic -c -g7 -r
 • The owner of the desktop needs to set their background image once if this script is run by another user (read below)
 
-• Do not necessarily need to use the set (-s) option. After creating an image (-c) can change the desktop background to potd.jpg. That file is then watch for changes (in GNOME at least) and the desktop updates automatically when potd.jpg is updated. Aswell the set option needs to be run by the user for whos desktop its updating but luckily only needs to be set once.
+• Do not necessarily need to use the set (-s) option. After creating an image (-c) the desktop background can be set to potd.jpg. That file is then watched for changes (in GNOME at least) and the desktop updates automatically when potd.jpg is updated. Aswell the set option needs to be run by the user for whos desktop its updating, but luckily only needs to be set once.
 • It is useful to get at least a few images in the future in event download fails.
 • If have future images then best to run -g after -c -s so latest image gets promptly updated when script runs. Otherwise downloading can take some time on slower connections with higher risk of script being interrupted (laptop suspended).
 • If -r isnt specified images will forever be accumulated thus filling up drive.
@@ -86,7 +86,7 @@ setup notes:
 #use getopts for parsing arguments. http://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
 
 ## general user options used by multiple functions.
-workingdir="$HOME/Pictures/potd-wikic/" #default working directory for wallpapers.
+workingdir="$HOME/Pictures/potd-wikic" #default working directory for wallpapers. (don't add trailing '/')
 errorFile="errors.log"
 imageFileCurrent="potd.jpg"
 lastUpdateFile="potd.dat"
@@ -266,7 +266,7 @@ function createPOTD() {
 			ps=$(printf %.$2f $(echo "scale=3; $textSize * ($height / $resY)" | bc)) #simple scaling compared to x direction.
 		fi
 		convert -background black -pointsize $ps -size $width -fill white caption:"$descriptionPlain" $imageFileCurrentDescription #turn description text into image. #-gravity center for center justified.
-		convert $imageFile $imageFileCurrentDescription -background black -append $imageFileCurrent #append inmages together.
+		convert $imageFile $imageFileCurrentDescription -background black -append $imageFileCurrent #append images together.
 		#set the desktop image.
 
 		#write date to file for checking if run again.
